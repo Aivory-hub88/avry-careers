@@ -1,56 +1,48 @@
-# Standalone docker-compose for avry-careers (development)
-# For full-stack: use docker-compose.full-stack.yml from project root
+version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: avry-careers-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: aivery
-    volumes:
-      - careers_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   avry-careers:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: avry-careers
     ports:
-      - "8090:8090"
+      - "8089:8089"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/aivery
-      PORT: 8090
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
-      JWT_SECRET: ${JWT_SECRET:-local_development_secret_key_change_in_production}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-careers@aivory.id}
+      - PORT=8089
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-careers@aivory.id}
     volumes:
       - careers_cv_data:/app/data/cvs
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8089/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - aivory-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.avry-careers.rule=Host(`backend.aivory.id`) && PathPrefix(`/careers`)"
+      - "traefik.http.routers.avry-careers.entrypoints=websecure"
+      - "traefik.http.routers.avry-careers.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avry-careers.loadbalancer.server.port=8089"
 
 volumes:
-  careers_pg_data:
   careers_cv_data:
+
+networks:
+  aivory-network:
+    name: aivory-network
+    external: true
