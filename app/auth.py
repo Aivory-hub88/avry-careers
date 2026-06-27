@@ -1,12 +1,8 @@
 """
-Supabase JWT authentication for the AVRY Careers Service.
+JWT authentication for the AVRY Careers Service.
 
-Auth is centralized on Supabase across the whole platform. Every service
-verifies the Supabase-issued access token using the shared project JWT secret
-(SUPABASE_JWT_SECRET). The frontend sends `Authorization: Bearer <token>`.
-
-For backward compatibility during the migration, a legacy backend-issued HS256
-token (signed with JWT_SECRET) is also accepted.
+Auth uses a self-hosted JWT secret (JWT_SECRET) stored in the VPS environment.
+The frontend sends `Authorization: Bearer <token>`.
 
 Endpoints that expose cross-user (admin) data must depend on `require_admin`.
 Public endpoints (vacancy listing, application submission) stay open.
@@ -37,12 +33,12 @@ def _extract_token(authorization: Optional[str]) -> Optional[str]:
 
 def verify_token(token: str) -> Optional[dict]:
     """
-    Verify a JWT against the configured secrets (Supabase first, then legacy).
+    Verify a JWT against configured secrets (jwt_secret first, supabase fallback).
 
     Returns the decoded payload on success, or None if the token is invalid or
     expired under every configured secret.
     """
-    secrets = [s for s in (settings.supabase_jwt_secret, settings.jwt_secret) if s]
+    secrets = [s for s in (settings.jwt_secret, settings.supabase_jwt_secret) if s]
 
     for secret in secrets:
         try:
